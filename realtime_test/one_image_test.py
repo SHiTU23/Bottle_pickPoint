@@ -56,8 +56,6 @@ pick_point = tuple(bottle_data[:2])
 bottle_orientation = bottle_data[2]
 
 print("bottle key-points: ", bottle_data)
-# print(f"pick point: {pick_point}")
-# print(f"bottle_color: {bottle_color}")
 
 aruco = translator.aruco_detector(image)
 if aruco != coordinate_translator.NO_ARUCO_FOUND:
