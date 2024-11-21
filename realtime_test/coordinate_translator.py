@@ -75,6 +75,13 @@ class translator:
             new_coordinate = np.matmul(np.linalg.inv(tfmatrix1),old_coordinate)
             new_coordinate = new_coordinate/self._pixel_cm_ratio
             new_angle = old_angle + np.degrees(tfangle)
+            if new_angle < 0:
+                new_angle = 360+new_angle
+
+            new_angle = round(new_angle)
+
+            cv2.putText(self._image, f'new_angle_inHere: {new_angle}', (50, 300), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+
             return new_coordinate, new_angle
         else:
             return NO_ARUCO_FOUND
