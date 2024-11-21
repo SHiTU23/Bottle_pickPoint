@@ -13,6 +13,7 @@ class keypoint:
         self.image_path = ''
         self._bottle_orientation = -1 ## no bottle orientation is done
         self.cap_color = '' ### no color detection is done
+        self.bottle_keypoints = None
 
     def predict_keyPoints(self, image_array) -> dict:
         '''
@@ -47,6 +48,13 @@ class keypoint:
         else: 
             self.bottle_keypoints = None
             return self.bottle_keypoints
+    
+    def bottle_detected(self, image_array):
+        predicted_keyPoints = self.predict_keyPoints(image_array)
+        if predicted_keyPoints != None:
+            return True
+        else:
+            return False
 
     def bottle_features(self, image_array) -> list:
         """
