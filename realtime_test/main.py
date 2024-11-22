@@ -17,13 +17,16 @@ class bottle_finder:
     MQTT_CONNECTED = False
     
     
-    def __init__(self, aruco_marker, aruco_marker_length, run_mode=MANUAL_MODE, record_video = False, fps=10):
+    def __init__(self, aruco_marker, aruco_marker_length, run_mode=MANUAL_MODE):
+        '''
+            options for run_mode : bottle_finder.MANUAL_MODE / bottle_finder.AUTO_MODE
+        '''
         self.current_dir = os.path.dirname(__file__)
         self.savePath = self.current_dir + '/predicted_images' 
 
         self.run_mode = run_mode
-        self.stream = record_video
-        self.FPS = fps
+        self.stream = True
+        self.FPS = 10
         self.ARUCO_LENGTH = aruco_marker_length
         self.ARUCO_MARKER = aruco_marker
 
@@ -128,7 +131,7 @@ class bottle_finder:
 
                     self.keypoint_detector.show_image_with_keypoints()
 
-                if self.stream == True:
+                if stream_video_start == True:
                     print("recording ...........")
                     self.out.write(image)
 
@@ -143,7 +146,7 @@ class bottle_finder:
                     print(f"********** Image {image_counter} Saved **********")
                 elif key == ord('r'):
                     print("record started")
-                    self.stream = True
+                    stream_video_start = True
             else:
                 print("NO FRAME CAPTURED")
         
@@ -208,7 +211,7 @@ if __name__ == '__main__':
     X_OFFSET = 20
     Y_OFFSET = 20
 
-    bottle_scanner = bottle_finder(ARUCO_MARKER, ARUCO_LENGTH, run_mode=bottle_finder.MANUAL_MODE, record_video=False, fps=FPS)
+    bottle_scanner = bottle_finder(ARUCO_MARKER, ARUCO_LENGTH, run_mode=bottle_finder.MANUAL_MODE)
     bottle_scanner.scan_the_scene(PICK_RANGE, delay=0.5, coordinate_offset=(X_OFFSET, Y_OFFSET))
 
 
