@@ -114,7 +114,8 @@ class bottle_finder:
                                         ### keep sending the data
                                         print("----------------------------------- SEND DATA -----")
                                         self.mqtt_connection.send_bottle_data(bottle_pickPose_x, bottle_pickPose_y, bottle_angle, bottle_color)
-                                    
+                                        cv2.putText(self.keypoint_detector._image, (f"BOTTLE IN POSE; Data is Densing"), (10, 200), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 250), 1)
+                                        
                                     ### MANUAL mode: NO communcation with MQTT
                                     elif self.run_mode == self.MANUAL_MODE:
                                         print(f"new_coordinates: ({bottle_pickPose_x},{bottle_pickPose_y});", "real_angle: ", bottle_angle, "color: ", bottle_color) ### new_coordinates in mm and angle in degrees
@@ -207,7 +208,7 @@ if __name__ == '__main__':
     X_OFFSET = 20
     Y_OFFSET = 20
 
-    bottle_scanner = bottle_finder(ARUCO_MARKER, ARUCO_LENGTH, run_mode=bottle_finder.AUTO_MODE, record_video=False, fps=FPS)
+    bottle_scanner = bottle_finder(ARUCO_MARKER, ARUCO_LENGTH, run_mode=bottle_finder.MANUAL_MODE, record_video=False, fps=FPS)
     bottle_scanner.scan_the_scene(PICK_RANGE, delay=0.5, coordinate_offset=(X_OFFSET, Y_OFFSET))
 
 
