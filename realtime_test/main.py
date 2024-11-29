@@ -65,8 +65,11 @@ class bottle_finder:
         return camera
     
     def scan_the_scene(self, pick_range, delay=0, coordinate_offset=(0,0)):
+        stream_video_start = False
+
         bottle_available = False
         notify_mqtt = False
+        massage_sent = False
         
         # Convert images to OpenCV format and display
         converter = pylon.ImageFormatConverter()
@@ -77,10 +80,13 @@ class bottle_finder:
         image_counter = 0
         last_time = 0
         
+        counter = 0
+        
         while self.cap.IsGrabbing():
             grabResult = self.cap.RetrieveResult(5000, pylon.TimeoutHandling_ThrowException)
             new_time = time.time() 
             if grabResult.GrabSucceeded():
+                print(f"--------------------------------------------------------------------------------------COUNTER : {counter}")
                 # Access the image data as a NumPy array
                 image = converter.Convert(grabResult)
                 image = image.GetArray()
@@ -101,9 +107,14 @@ class bottle_finder:
                                     print("***************** BOTTLE IN PICK RANGE *****************")
                                     bottle_available = True
                                     notify_mqtt = True
+                                    print(f"in if notify_mqtt is {notify_mqtt}")
+
+                                elif self.bottle_is_inPlaceRange(bottle_pickPose_y):
+                                    massage_sent = False
+                                    print(f"in if massage_sent is {massage_sent}")
                                 else:
                                     bottle_available = False
-                                    massage_sent = False
+                                    
 
                                 if bottle_available:
                                     ### AUTO mode: communication with MQTT
@@ -112,6 +123,7 @@ class bottle_finder:
                                         if notify_mqtt and (massage_sent == False):
                                             print("----------------------------------- send notification ")
                                             self.mqtt_connection.send_response_message()
+                                            counter += 1
                                             notify_mqtt = False
                                             massage_sent = True
                                         ### keep sending the data
@@ -199,6 +211,15 @@ class bottle_finder:
             return True
         else:
             return False
+        
+    def bottle_is_inPlaceRange(self, pick_point_Y):
+        ### the range that the bottle might be placed
+        place_range = (100, 200)
+        lower_band, upper_band = place_range
+        if lower_band <= pick_point_Y <= upper_band:
+            return True
+        else:
+            return False
 
 
 if __name__ == '__main__':
@@ -211,8 +232,8 @@ if __name__ == '__main__':
     X_OFFSET = 20
     Y_OFFSET = 20
 
-    bottle_scanner = bottle_finder(ARUCO_MARKER, ARUCO_LENGTH, run_mode=bottle_finder.MANUAL_MODE)
-    bottle_scanner.scan_the_scene(PICK_RANGE, delay=0.5, coordinate_offset=(X_OFFSET, Y_OFFSET))
+    bottle_scanner = bottle_finder(ARUCO_MARKER, ARUCO_LENGTH, run_mode=bottle_finder.AUTO_MODE)
+    bottle_scanner.scan_the_scene(PICK_RANGE, delay=0, coordinate_offset=(X_OFFSET, Y_OFFSET))
 
 
 
