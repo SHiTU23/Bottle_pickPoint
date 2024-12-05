@@ -58,13 +58,13 @@ class translator:
             aruco_vector = np.array([self._aruco_top_right_x - self._aruco_top_left_x, self._aruco_top_right_y - self._aruco_top_left_y]) ### x direction
             image_vector = np.array([1,0])  ### (x, y)
 
-            print(f"top_left: {self._aruco_top_left_x}, {self._aruco_top_left_y}; top_right: {self._aruco_top_right_x}, {self._aruco_top_right_y}")
+            # print(f"top_left: {self._aruco_top_left_x}, {self._aruco_top_left_y}; top_right: {self._aruco_top_right_x}, {self._aruco_top_right_y}")
             tfangle = np.arccos((np.dot(aruco_vector, image_vector)/ (np.linalg.norm(aruco_vector)*np.linalg.norm(image_vector))))   ## cos(theta)=A.B / |A|x|B|
             
             if self._aruco_top_right_y < self._aruco_top_left_y:
                 tfangle = -tfangle
             ### tfangle is in radian
-            print(f"the angle between aruco upper side and image top line is {np.degrees(tfangle)}")
+            # print(f"the angle between aruco upper side and image top line is {np.degrees(tfangle)}")
 
             tfmatrix1 = np.matrix([[np.cos(tfangle), -np.sin(tfangle), 0 , self._aruco_top_left_x],
                                     [np.sin(tfangle),  np.cos(tfangle), 0 , self._aruco_top_left_y],
@@ -120,6 +120,6 @@ if __name__ == "__main__":
     if translation_result is NO_ARUCO_FOUND:
         print("NO ARUCO FOUND !!")
     else:
-        print(f"new coordinates: {translation_result}")
+        #print(f"new coordinates: {translation_result}")
         cv2.imshow('image', image)
         cv2.waitKey(0)
