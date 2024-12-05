@@ -40,7 +40,7 @@ class bottle_finder:
         
         self.frame_width = (self.cap.Width.Value)//4 ### 612
         self.frame_height = (self.cap.Height.Value)//4 ### 512
-
+        
         if self.run_mode == self.AUTO_MODE:
             self.mqtt_startConnection()
             self.MQTT_CONNECTED = True
@@ -55,6 +55,7 @@ class bottle_finder:
             
     def mqtt_startConnection(self):
         self.mqtt_connection = mqtt_communication()
+        print("CONNECTED TO MQTT")
 
     #################################################
 
@@ -70,6 +71,7 @@ class bottle_finder:
         bottle_available = False
         notify_mqtt = False
         massage_sent = False
+        bottle_is_detected = False
         
         # Convert images to OpenCV format and display
         converter = pylon.ImageFormatConverter()
@@ -86,7 +88,7 @@ class bottle_finder:
             grabResult = self.cap.RetrieveResult(5000, pylon.TimeoutHandling_ThrowException)
             new_time = time.time() 
             if grabResult.GrabSucceeded():
-                print(f"--------------------------------------------------------------------------------------COUNTER : {counter}")
+                                    
                 # Access the image data as a NumPy array
                 image = converter.Convert(grabResult)
                 image = image.GetArray()
@@ -102,9 +104,15 @@ class bottle_finder:
                                 cv2.putText(self.keypoint_detector._image, (f"real_pick_coords: ({int(bottle_pickPose_x)}, {int(bottle_pickPose_y)})"), (10, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 1)
                                 self.keypoint_detector.show_image_with_keypoints()
 
-                                ### if the bottle in the pick-range -> bottle found
-                                if self.bottle_is_inPickRange(pick_range, bottle_pickPose_y):
-                                    print("***************** BOTTLE IN PICK RANGE *****************")
+                                ### if the bottle in the visible-range -> bottle found
+                                if -150 <= bottle_pickPose_y < -100: #and (bottle_is_detected == False):
+                                    ### notify the PLC to get prepared for stopping the conveyor
+                                    print(f"+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ Bottle is detected ++")
+                                    #bottle_is_detected = True
+                                    self.mqtt_connection.send_response_message("TRUE","FALSE")
+
+                                elif self.bottle_is_inPickRange(pick_range, bottle_pickPose_y):
+                                    print("########################################################### BOTTLE IN PICK RANGE ##")
                                     bottle_available = True
                                     notify_mqtt = True
                                     print(f"in if notify_mqtt is {notify_mqtt}")
@@ -112,9 +120,11 @@ class bottle_finder:
                                 elif self.bottle_is_inPlaceRange(bottle_pickPose_y):
                                     massage_sent = False
                                     print(f"in if massage_sent is {massage_sent}")
-                                else:
+
+                                elif bottle_pickPose_y < 150 and bottle_pickPose_y > 400: ## bottle out of visible range
                                     bottle_available = False
-                                    
+                                    bottle_is_detected = False
+                                    self.mqtt_connection.send_response_message("FALSE","FALSE") 
 
                                 if bottle_available:
                                     ### AUTO mode: communication with MQTT
@@ -122,20 +132,24 @@ class bottle_finder:
                                         ### send : "I have found a bottle" to mqtt
                                         if notify_mqtt and (massage_sent == False):
                                             print("----------------------------------- send notification ")
-                                            self.mqtt_connection.send_response_message()
                                             counter += 1
                                             notify_mqtt = False
                                             massage_sent = True
+                                               
                                         ### keep sending the data
-                                        print("----------------------------------- SEND DATA -----")
+                                        print("---------------------------------------------------------- SEND DATA -----")
+                                        #self.mqtt_connection.send_bottle_data(bottle_pickPose_x, bottle_pickPose_y, bottle_angle, bottle_color)
                                         self.mqtt_connection.send_bottle_data(bottle_pickPose_x, bottle_pickPose_y, bottle_angle, bottle_color)
+                                        self.mqtt_connection.send_response_message("TRUE","TRUE") 
                                         cv2.putText(self.keypoint_detector._image, (f"BOTTLE IN POSE; Data is Densing"), (10, 200), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 250), 1)
                                         
                                     ### MANUAL mode: NO communcation with MQTT
                                     elif self.run_mode == self.MANUAL_MODE:
                                         print(f"new_coordinates: ({bottle_pickPose_x},{bottle_pickPose_y});", "real_angle: ", bottle_angle, "color: ", bottle_color) ### new_coordinates in mm and angle in degrees
                                         cv2.putText(self.keypoint_detector._image, (f"BOTTLE IN POSE"), (10, 200), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 250), 1)
-                                        
+                            else:
+                                self.mqtt_connection.send_response_message("FALSE","FALSE") 
+       
                         else:
                             print("NO ARUCO DETECTED OR NO BOTTLE")
 
@@ -227,7 +241,7 @@ if __name__ == '__main__':
     ARUCO_LENGTH = 100
     ARUCO_MARKER = cv2.aruco.DICT_5X5_100
 
-    PICK_RANGE = (300, 400) ### range of Y axis in the Aruco coordinates
+    PICK_RANGE = (10, 300) ### range of Y axis in the Aruco coordinates
     ### these have been found by avaluating by measuring in the real layout
     X_OFFSET = 20
     Y_OFFSET = 20
