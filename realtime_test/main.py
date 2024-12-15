@@ -145,7 +145,7 @@ class bottle_finder:
                                         
                                     ### MANUAL mode: NO communcation with MQTT
                                     elif self.run_mode == self.MANUAL_MODE:
-                                        print(f"new_coordinates: ({bottle_pickPose_x},{bottle_pickPose_y});", "real_angle: ", bottle_angle, "color: ", bottle_color) ### new_coordinates in mm and angle in degrees
+                                        print(f"(x, y, theta, color): ({bottle_pickPose_x}, {bottle_pickPose_y}, {bottle_angle}, {bottle_color})") ### new_coordinates in mm and angle in degrees
                                         cv2.putText(self.keypoint_detector._image, (f"BOTTLE IN POSE"), (10, 200), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 250), 1)
                             else:
                                 self.mqtt_connection.send_response_message("FALSE","FALSE") 
