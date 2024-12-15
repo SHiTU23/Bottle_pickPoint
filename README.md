@@ -12,17 +12,76 @@
 
 ### Project Description
 ---
+The aim is to pick bottles comming on a conveyor; so, the position and orientation of the bottle is needed to be passed to the robot for picking process. Also, for sorting bottles based on their cap's color, a color detection is needed. 
 
-#### Key point detection 
-A model is trained to give 3 key points on bottles:
+For this regard, pre-trained model `YOLO-Pose-11n` has been fine tunned on 300 images taken from the real scen in the lab, using no augmented images, to exctract required features of the bottle. All 300 images were labeled manually using CVAT [(annotation tool)](#annotation-tool).
+
+This model gives 3 key points on bottles:
 + one point on the cap corner for detecting the color of the bottle
 + one point under the cap for picking coordinates, fir the bottle to be picked by robot
 + one point at the end of the bottle for calculatign the orientation of the bottle
 
-This model was trained on 300 images (no augmented images)
-For the annotation, CVAT was utilized. 
+![points-on-image](./history_record/predicted_images/predicted_4_yellow.jpg_0_4343.jpg.jpg)
 
-<br><br><br><br>
+<br>
+
+## Steps of the project
+
+1. The first step is to get output from the camera, in this project a *Busler camera* is used. [get help for working with Busler Cam](#basler-camera)
+
+2. An ArUco marker or any other marker is needed to convert the pixel dimensions into real cm or mm. Here a `10mm-long ArUco 5x5` is used. You can generate ArUco from [here](https://chev.me/arucogen/)
+
+3. Once the scene is ready, install all `needed packages` for running the code. Also you need to install the `pylon viewer` software if you are using [Busler camera](#basler-camera). 
+```shell
+pip install requirement.txt
+```
+
+4. in the main loop of the `main.py` code, some modifications must be taken in coreesponding to the situation or perforamnce.
+> **Variables:** 
+> + `FPS` : frame per second. change if you want more frames to be taken in one second and increase the speed.
+> + `ARUCO_LENGTH` : length of the side of ArUco. 
+> + `ARUCO_MARKER` : use the `cv2.aruco.DICT_5X5_100` format for definig which ArUco is being used.
+> + `PICK_RANGE` : once the bottle `pick_point` is in the `pick_range` a signal turns on.
+> + `X_OFFSET` : difference between true `X` value of the `pick_point` on the bottle in ArUco coordinates and the estimated one. (it should have been 20mm more to the right than what was predicted)
+> + `Y_OFFSET` : difference between true `Y` value of the `pick_point` on the bottle in ArUco coordinates and the estimated one. (it should have been 20mm more to the down than what was predicted)
+>
+> **main function parameters:**
+> + `run_mode` : There are two modes: `MANUAL_MODE` and `AUTO_MODE`; the default mode is `MANUAL_MODE`.
+>   + `MANUAL_MODE` : this model only shows the bottle positions and if it is in the `pick range`. 
+>   + `AUTO_MODE` : Sends the data to server using MQTT in addition to the samethings that is done in manual_mode.  
+> **NOTE:** \
+> You may need to change the `broker_address` in [mqtt_send_data.py](./realtime_test/mqtt_send_data.py)
+> + ` delay=0` : The delay for taking images and do the process of feature exctraction. `0` means no delay and works as real-time as possible.
+
+
+```py
+if __name__ == '__main__':
+    FPS = 10
+    ARUCO_LENGTH = 100
+    ARUCO_MARKER = cv2.aruco.DICT_5X5_100
+
+    PICK_RANGE = (10, 300) ### range of Y axis in the Aruco coordinates
+    ### these have been found by avaluating by measuring in the real layout
+    X_OFFSET = 20
+    Y_OFFSET = 20
+
+    bottle_scanner = bottle_finder(ARUCO_MARKER, ARUCO_LENGTH, run_mode=bottle_finder.AUTO_MODE)
+    bottle_scanner.scan_the_scene(PICK_RANGE, delay=0, coordinate_offset=(X_OFFSET, Y_OFFSET))
+
+```
+
+5. Run the [main.py](./realtime_test/main.py) 
+
+<br>
+The output of the code would like:
+
+`in Manual Mode`
+> `x, y, theta` are all translated into `ArUco` coordinates.
+```shell
+(x, y, theta, color): (185, 210, 126, blue)                               
+```
+
+<br>
 
 ### Code Help
 ---
@@ -30,6 +89,9 @@ For the annotation, CVAT was utilized.
 ### Basler Camera
 
 > Basler camera cannot be opened using `OpenCV`, either its software (`pylon Viwer`) can be used or the following code. A better version of the code can be found [here](./realtime_test/basler_cam.py)
+>
+> ***NOTE*** \
+> even for opening the camera in python, its software must be installed, as it installs the needed driver for reading the camera at the same time. [link for download](https://www.baslerweb.com/en/software/pylon/pylon-viewer/)
 
 ```py
 from pypylon import pylon
