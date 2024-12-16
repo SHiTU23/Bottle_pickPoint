@@ -65,7 +65,15 @@ class bottle_finder:
         camera = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateFirstDevice())
         return camera
     
-    def scan_the_scene(self, pick_range, delay=0, coordinate_offset=(0,0)):
+    def scan_the_scene(self, pick_range, delay=0, coordinate_offset=(0,0), n_image=10):
+        ### n_image = 20 means it takes 20 images to take avarage on pick_positions
+        positions_for_avaerage_X = []
+        positions_for_avaerage_Y = []
+        positions_for_avaerage_theta = []
+        average_x = 0
+        average_y = 0
+        average_angle = 0
+
         stream_video_start = False
 
         bottle_available = False
@@ -96,63 +104,85 @@ class bottle_finder:
                 
                 ### check for bottles every 0.5 sec if the delay = 0.5
                 if new_time - last_time > delay:
-                    if self.bottle_is_found(image):
-                        bottle_features = self.keypoint_detector.bottle_features(image)
-                        if self.aruco_is_visible(image):
-                            if bottle_features != None:
-                                bottle_pickPose_x, bottle_pickPose_y, bottle_angle, bottle_color = self.bottlePose_in_arucoCoords(bottle_features, coordinate_offset)
-                                cv2.putText(self.keypoint_detector._image, (f"real_pick_coords: ({int(bottle_pickPose_x)}, {int(bottle_pickPose_y)})"), (10, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 1)
-                                self.keypoint_detector.show_image_with_keypoints()
+                    if len(positions_for_avaerage_X) < n_image and len(positions_for_avaerage_Y) < n_image: 
+                        if self.bottle_is_found(image):
+                            bottle_features = self.keypoint_detector.bottle_features(image)
+                            if self.aruco_is_visible(image):
+                                if bottle_features != None:
+                                    bottle_pickPose_x, bottle_pickPose_y, bottle_angle, bottle_color = self.bottlePose_in_arucoCoords(bottle_features, coordinate_offset)
+                                    # cv2.putText(self.keypoint_detector._image, (f"real_pick_coords: ({int(bottle_pickPose_x)}, {int(bottle_pickPose_y)})"), (10, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 1)
+                                    cv2.putText(self.keypoint_detector._image, (f"averaged (x, y, theta, color): ({(average_x)}, {(average_y)}, {average_angle}, {bottle_color})"), (10, 300), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 1)
+                        
+                                    self.keypoint_detector.show_image_with_keypoints()
+                                    positions_for_avaerage_X.append(bottle_pickPose_x)
+                                    positions_for_avaerage_Y.append(bottle_pickPose_y)
+                                    positions_for_avaerage_theta.append(bottle_angle)
+                                    
+                            else:
+                                print("NO ARUCO DETECTED OR NO BOTTLE")
+                        else:
+                            if self.run_mode == self.AUTO_MODE:
+                                self.mqtt_connection.send_response_message("FALSE","FALSE") 
 
-                                ### if the bottle in the visible-range -> bottle found
-                                if -150 <= bottle_pickPose_y < -100: #and (bottle_is_detected == False):
-                                    ### notify the PLC to get prepared for stopping the conveyor
-                                    print(f"+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ Bottle is detected ++")
-                                    #bottle_is_detected = True
-                                    self.mqtt_connection.send_response_message("TRUE","FALSE")
+                    else:
+                        ### take the average and show coordinates
+                        print("++++++++++++++++++++++++ AVERAGING +++++++++++++++++++++++++++")
+                        average_x = int(sum(positions_for_avaerage_X) / n_image)
+                        average_y = int(sum(positions_for_avaerage_Y) / n_image)
+                        average_angle = int(sum(positions_for_avaerage_theta) / n_image)
+                        cv2.putText(self.keypoint_detector._image, (f"averaged (x, y, theta, color): ({(average_x)}, {(average_y)}, {average_angle}, {bottle_color})"), (10, 300), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 1)
+                        positions_for_avaerage_X = []
+                        positions_for_avaerage_Y = []
+                        positions_for_avaerage_theta = []    
+                                                 
 
-                                elif self.bottle_is_inPickRange(pick_range, bottle_pickPose_y):
-                                    print("########################################################### BOTTLE IN PICK RANGE ##")
-                                    bottle_available = True
-                                    notify_mqtt = True
-                                    print(f"in if notify_mqtt is {notify_mqtt}")
+                        ### if the bottle in the visible-range -> bottle found
+                        if -150 <= average_y < -100: #and (bottle_is_detected == False):
+                            ### notify the PLC to get prepared for stopping the conveyor
+                            print(f"+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ Bottle is detected ++")
+                            #bottle_is_detected = True
+                            if self.run_mode == self.AUTO_MODE:
+                                self.mqtt_connection.send_response_message("TRUE","FALSE")
 
-                                elif self.bottle_is_inPlaceRange(bottle_pickPose_y):
-                                    massage_sent = False
-                                    print(f"in if massage_sent is {massage_sent}")
+                        elif self.bottle_is_inPickRange(pick_range, average_y):
+                            print("########################################################### BOTTLE IN PICK RANGE ##")
+                            bottle_available = True
+                            notify_mqtt = True
+                            print(f"in if notify_mqtt is {notify_mqtt}")
 
-                                elif bottle_pickPose_y < 150 and bottle_pickPose_y > 400: ## bottle out of visible range
-                                    bottle_available = False
-                                    bottle_is_detected = False
-                                    self.mqtt_connection.send_response_message("FALSE","FALSE") 
+                        elif self.bottle_is_inPlaceRange(average_y):
+                            massage_sent = False
+                            print(f"in if massage_sent is {massage_sent}")
 
-                                if bottle_available:
-                                    ### AUTO mode: communication with MQTT
-                                    if self.run_mode == self.AUTO_MODE:
-                                        ### send : "I have found a bottle" to mqtt
-                                        if notify_mqtt and (massage_sent == False):
-                                            print("----------------------------------- send notification ")
-                                            counter += 1
-                                            notify_mqtt = False
-                                            massage_sent = True
-                                               
-                                        ### keep sending the data
-                                        print("---------------------------------------------------------- SEND DATA -----")
-                                        #self.mqtt_connection.send_bottle_data(bottle_pickPose_x, bottle_pickPose_y, bottle_angle, bottle_color)
-                                        self.mqtt_connection.send_bottle_data(bottle_pickPose_x, bottle_pickPose_y, bottle_angle, bottle_color)
-                                        self.mqtt_connection.send_response_message("TRUE","TRUE") 
-                                        cv2.putText(self.keypoint_detector._image, (f"BOTTLE IN POSE; Data is Densing"), (10, 200), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 250), 1)
+                        elif average_y < 150 and average_y > 400: ## bottle out of visible range
+                            bottle_available = False
+                            bottle_is_detected = False
+                            if self.run_mode == self.AUTO_MODE:
+                                self.mqtt_connection.send_response_message("FALSE","FALSE") 
+
+                        if bottle_available:
+                            ### AUTO mode: communication with MQTT
+                            if self.run_mode == self.AUTO_MODE:
+                                ### send : "I have found a bottle" to mqtt
+                                if notify_mqtt and (massage_sent == False):
+                                    print("----------------------------------- send notification ")
+                                    counter += 1
+                                    notify_mqtt = False
+                                    massage_sent = True
+                                        
+                                ### keep sending the data
+                                print("---------------------------------------------------------- SEND DATA -----")
+                                #self.mqtt_connection.send_bottle_data(bottle_pickPose_x, average_y, bottle_angle, bottle_color)
+                                self.mqtt_connection.send_bottle_data(average_x, average_y, average_angle, bottle_color)
+                                self.mqtt_connection.send_response_message("TRUE","TRUE") 
+                                cv2.putText(self.keypoint_detector._image, (f"BOTTLE IN POSE; Data is Densing"), (10, 200), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 250), 1)
                                         
                                     ### MANUAL mode: NO communcation with MQTT
-                                    elif self.run_mode == self.MANUAL_MODE:
-                                        print(f"(x, y, theta, color): ({bottle_pickPose_x}, {bottle_pickPose_y}, {bottle_angle}, {bottle_color})") ### new_coordinates in mm and angle in degrees
-                                        cv2.putText(self.keypoint_detector._image, (f"BOTTLE IN POSE"), (10, 200), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 250), 1)
-                            else:
-                                self.mqtt_connection.send_response_message("FALSE","FALSE") 
-       
-                        else:
-                            print("NO ARUCO DETECTED OR NO BOTTLE")
-
+                            elif self.run_mode == self.MANUAL_MODE:
+                                print(f"(x, y, theta, color): ({average_x}, {average_y}, {average_angle}, {bottle_color})") ### new_coordinates in mm and angle in degrees
+                                cv2.putText(self.keypoint_detector._image, (f"BOTTLE IN POSE"), (10, 200), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 250), 1)
+                            
+                        
                     last_time = new_time
 
                     self.keypoint_detector.show_image_with_keypoints()
@@ -243,10 +273,10 @@ if __name__ == '__main__':
 
     PICK_RANGE = (10, 300) ### range of Y axis in the Aruco coordinates
     ### these have been found by avaluating by measuring in the real layout
-    X_OFFSET = 20
-    Y_OFFSET = 20
+    X_OFFSET = 0
+    Y_OFFSET = 0
 
-    bottle_scanner = bottle_finder(ARUCO_MARKER, ARUCO_LENGTH, run_mode=bottle_finder.AUTO_MODE)
+    bottle_scanner = bottle_finder(ARUCO_MARKER, ARUCO_LENGTH, run_mode=bottle_finder.MANUAL_MODE)
     bottle_scanner.scan_the_scene(PICK_RANGE, delay=0, coordinate_offset=(X_OFFSET, Y_OFFSET))
 
 
@@ -298,7 +328,7 @@ camera = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateFirstDevice())
 camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
 
 frame_width = (camera.Width.Value)//4 ### 612
-frame_height = (camera.Height.Value)//4 ### 512\
+frame_height = (camera.Height.Value)//4 ### 512
 
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec for .mp4 format
 out = cv2.VideoWriter(f'{current_dir}/videos/prediction_video.mp4', fourcc, FPS, (frame_width, frame_height))
