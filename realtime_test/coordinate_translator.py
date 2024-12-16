@@ -77,6 +77,8 @@ class translator:
             new_angle = old_angle + np.degrees(tfangle)
             if new_angle < 0:
                 new_angle = 360+new_angle
+            elif new_angle>360:
+                new_angle = new_angle - 360
 
             new_angle = round(new_angle)
 
