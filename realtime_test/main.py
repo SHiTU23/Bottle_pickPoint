@@ -111,7 +111,7 @@ class bottle_finder:
                                 if bottle_features != None:
                                     bottle_pickPose_x, bottle_pickPose_y, bottle_angle, bottle_color = self.bottlePose_in_arucoCoords(bottle_features, coordinate_offset)
                                     # cv2.putText(self.keypoint_detector._image, (f"real_pick_coords: ({int(bottle_pickPose_x)}, {int(bottle_pickPose_y)})"), (10, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 1)
-                                    cv2.putText(self.keypoint_detector._image, (f"averaged (x, y, theta, color): ({(average_x)}, {(average_y)}, {average_angle}, {bottle_color})"), (10, 300), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 1)
+                                    cv2.putText(self.keypoint_detector._image, (f"averaged (x, y, theta, color): ({(average_x)}, {(average_y)}, {average_angle}, {bottle_color})"), (10, 500), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 1)
                         
                                     self.keypoint_detector.show_image_with_keypoints()
                                     positions_for_avaerage_X.append(bottle_pickPose_x)
@@ -130,14 +130,14 @@ class bottle_finder:
                         average_x = int(sum(positions_for_avaerage_X) / n_image)
                         average_y = int(sum(positions_for_avaerage_Y) / n_image)
                         average_angle = int(sum(positions_for_avaerage_theta) / n_image)
-                        cv2.putText(self.keypoint_detector._image, (f"averaged (x, y, theta, color): ({(average_x)}, {(average_y)}, {average_angle}, {bottle_color})"), (10, 300), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 1)
+                        cv2.putText(self.keypoint_detector._image, (f"averaged (x, y, theta, color): ({(average_x)}, {(average_y)}, {average_angle}, {bottle_color})"), (10, 500), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 1)
                         positions_for_avaerage_X = []
                         positions_for_avaerage_Y = []
                         positions_for_avaerage_theta = []    
                                                  
 
                         ### if the bottle in the visible-range -> bottle found
-                        if -150 <= average_y < -100: #and (bottle_is_detected == False):
+                        if -10 <= average_y < 100: #and (bottle_is_detected == False):
                             ### notify the PLC to get prepared for stopping the conveyor
                             print(f"+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ Bottle is detected ++")
                             #bottle_is_detected = True
@@ -271,7 +271,7 @@ if __name__ == '__main__':
     ARUCO_LENGTH = 100
     ARUCO_MARKER = cv2.aruco.DICT_5X5_100
 
-    PICK_RANGE = (10, 300) ### range of Y axis in the Aruco coordinates
+    PICK_RANGE = (200, 470) ### range of Y axis in the Aruco coordinates 200 - 470
     ### these have been found by avaluating by measuring in the real layout
     X_OFFSET = 0
     Y_OFFSET = 0
