@@ -117,11 +117,16 @@ class bottle_finder:
                                     positions_for_avaerage_X.append(bottle_pickPose_x)
                                     positions_for_avaerage_Y.append(bottle_pickPose_y)
                                     positions_for_avaerage_theta.append(bottle_angle)
+                                else:
+                                    if self.run_mode == self.AUTO_MODE:
+                                        print("NO BOTTEL FOR NOWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW")
+                                        self.mqtt_connection.send_response_message("FALSE","FALSE") 
                                     
                             else:
                                 print("NO ARUCO DETECTED OR NO BOTTLE")
                         else:
                             if self.run_mode == self.AUTO_MODE:
+                                print("NO BOTTEL FOR NOWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW")
                                 self.mqtt_connection.send_response_message("FALSE","FALSE") 
 
                     else:
@@ -137,24 +142,26 @@ class bottle_finder:
                                                  
 
                         ### if the bottle in the visible-range -> bottle found
-                        if -10 <= average_y < 100: #and (bottle_is_detected == False):
+                        if 50 <= average_y < 300: #and (bottle_is_detected == False):
                             ### notify the PLC to get prepared for stopping the conveyor
                             print(f"+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ Bottle is detected ++")
                             #bottle_is_detected = True
-                            if self.run_mode == self.AUTO_MODE:
+                            if self.run_mode == self.AUTO_MODE and bottle_available == False:
                                 self.mqtt_connection.send_response_message("TRUE","FALSE")
 
-                        elif self.bottle_is_inPickRange(pick_range, average_y):
+                        if self.bottle_is_inPickRange(pick_range, average_y):
                             print("########################################################### BOTTLE IN PICK RANGE ##")
                             bottle_available = True
                             notify_mqtt = True
                             print(f"in if notify_mqtt is {notify_mqtt}")
+                            if self.run_mode == self.AUTO_MODE:
+                                self.mqtt_connection.send_response_message("TRUE","TRUE")
 
                         elif self.bottle_is_inPlaceRange(average_y):
                             massage_sent = False
                             print(f"in if massage_sent is {massage_sent}")
 
-                        elif average_y < 150 and average_y > 400: ## bottle out of visible range
+                        elif average_y < -10 and average_y > 600: ## bottle out of visible range
                             bottle_available = False
                             bottle_is_detected = False
                             if self.run_mode == self.AUTO_MODE:
@@ -181,7 +188,6 @@ class bottle_finder:
                             elif self.run_mode == self.MANUAL_MODE:
                                 print(f"(x, y, theta, color): ({average_x}, {average_y}, {average_angle}, {bottle_color})") ### new_coordinates in mm and angle in degrees
                                 cv2.putText(self.keypoint_detector._image, (f"BOTTLE IN POSE"), (10, 200), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 250), 1)
-                            
                         
                     last_time = new_time
 
@@ -271,7 +277,7 @@ if __name__ == '__main__':
     ARUCO_LENGTH = 100
     ARUCO_MARKER = cv2.aruco.DICT_5X5_100
 
-    PICK_RANGE = (200, 470) ### range of Y axis in the Aruco coordinates 200 - 470
+    PICK_RANGE = (70, 470) ### range of Y axis in the Aruco coordinates 200 - 470
     ### these have been found by avaluating by measuring in the real layout
     X_OFFSET = 0
     Y_OFFSET = 0
